@@ -18,14 +18,30 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << EOF
-            # Navigate to the project directory
-            # cd /home/${USER_NAME}/Sample-AutoDeploy
+            # Navigate to home directory
+            cd ~
+
+            # Clone repo if not existing
+            if [ ! -d "Sample-AutoDeploy" ]; then
+              git clone https://github.com/john-andeyyy/Sample-AutoDeploy.git
+            fi
+
+            # Enter project directory
+            cd Sample-AutoDeploy
 
             # Pull latest changes
-            git checkout main
             git fetch --all
             git reset --hard origin/main
             git pull origin main
+
+            # Install .NET SDK if not installed
+            if ! command -v dotnet &> /dev/null; then
+              echo "Installing .NET SDK..."
+              wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+              chmod +x dotnet-install.sh
+              ./dotnet-install.sh --install-dir /usr/local/share/dotnet
+              export PATH=$PATH:/usr/local/share/dotnet
+            fi
 
             # Restore and build the .NET app
             dotnet restore
@@ -35,8 +51,13 @@ jobs:
             sudo systemctl stop Sample-AutoDeploy || true
             
             # Publish the app
-            dotnet publish -c Release -o /home/${USER_NAME}/Sample-AutoDeploy/published
+            dotnet publish -c Release -o ~/Sample-AutoDeploy/published
 
-            # Restart the service
-            sudo systemctl start Sample-AutoDeploy
+            # Restart the service (Ensure the service exists)
+            if [ -f "/etc/systemd/system/Sample-AutoDeploy.service" ]; then
+              sudo systemctl daemon-reload
+              sudo systemctl start Sample-AutoDeploy
+            else
+              echo "⚠️ Service file not found! Make sure Sample-AutoDeploy.service exists."
+            fi
           EOF

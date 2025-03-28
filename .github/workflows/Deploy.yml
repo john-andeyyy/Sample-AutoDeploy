@@ -20,7 +20,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << EOF
             # Navigate to home directory
             cd ~
-
+ 
             # Clone repo if not existing
             if [ ! -d "Sample-AutoDeploy" ]; then
               git clone https://github.com/john-andeyyy/Sample-AutoDeploy.git

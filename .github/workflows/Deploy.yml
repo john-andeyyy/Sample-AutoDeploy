@@ -1,5 +1,7 @@
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main # Auto-deploy kapag may push sa main branch
 
 jobs:
   Deploy:
@@ -7,9 +9,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
       - name: Setup SSH and Deploy
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -17,24 +16,18 @@ jobs:
           USER_NAME: ${{ secrets.USER_NAME }}
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << EOF
-            # Navigate to home directory
-            cd ~
- 
-            # Clone repo if not existing
-            if [ ! -d "Sample-AutoDeploy" ]; then
-              git clone https://github.com/john-andeyyy/Sample-AutoDeploy.git
-            fi
+          ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << 'EOF'
+            set -e  # Mag-stop kung may error
+            
+            # Navigate to project directory
+            cd ~/Sample-AutoDeploy
 
-            # Enter project directory
-            cd Sample-AutoDeploy
-
-            # Pull latest changes
+            # Ensure correct branch
             git fetch --all
             git reset --hard origin/main
             git pull origin main
 
-            # Install .NET SDK if not installed
+            # Ensure .NET SDK is installed
             if ! command -v dotnet &> /dev/null; then
               echo "Installing .NET SDK..."
               wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
@@ -43,21 +36,14 @@ jobs:
               export PATH=$PATH:/usr/local/share/dotnet
             fi
 
-            # Restore and build the .NET app
+            # Restore, build, and publish
             dotnet restore
             dotnet build --configuration Release
-            
-            # Stop existing app if running
-            sudo systemctl stop Sample-AutoDeploy || true
-            
-            # Publish the app
             dotnet publish -c Release -o ~/Sample-AutoDeploy/published
 
-            # Restart the service (Ensure the service exists)
-            if [ -f "/etc/systemd/system/Sample-AutoDeploy.service" ]; then
-              sudo systemctl daemon-reload
-              sudo systemctl start Sample-AutoDeploy
-            else
-              echo "⚠️ Service file not found! Make sure Sample-AutoDeploy.service exists."
-            fi
+            # Restart the application
+            sudo systemctl daemon-reload
+            sudo systemctl restart Sample-AutoDeploy
+
+            echo "✅ Deployment successful!"
           EOF

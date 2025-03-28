@@ -14,36 +14,30 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           HOSTNAME: ${{ secrets.HOSTNAME }}
-        #   USER_NAME: ${{ secrets.USER_NAME }}
+          USER_NAME: ${{ secrets.USER_NAME }}
           PROJECT_NAME: ${{ secrets.PROJECT_NAME }} 
         run: |
-          echo "$PRIVATE_KEY" > private_key && chmod 400 private_key
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << EOF
-            set -e  # Stop execution if any command fails
+            # Navigate to the project directory dynamically
+            cd /home/${USER_NAME}/${PROJECT_NAME}
 
-            echo "🚀 Navigating to project directory..."
-            cd /home/ubuntu/${PROJECT_NAME}
-            # cd /home/${USER_NAME}/${PROJECT_NAME}
-
-            echo "📥 Pulling latest changes..."
+            # Pull latest changes
             git checkout main
             git fetch --all
             git reset --hard origin/main
             git pull origin main
 
-            echo "🔧 Restoring and building .NET app..."
+            # Restore and build the .NET app
             dotnet restore
             dotnet build --configuration Release
-
-            echo "🛑 Stopping existing service..."
+            
+            # Stop existing app if running
             sudo systemctl stop ${PROJECT_NAME} || true
-
-            echo "🚀 Publishing application..."
+            
+            # Publish the app
             dotnet publish -c Release -o /home/${USER_NAME}/${PROJECT_NAME}/published
 
-            echo "🔄 Restarting service..."
-            sudo systemctl restart ${PROJECT_NAME}
-
-            echo "✅ Deployment complete!"
-            exit
+            # Restart the service
+            sudo systemctl start ${PROJECT_NAME}
           EOF

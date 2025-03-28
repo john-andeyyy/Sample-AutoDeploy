@@ -15,12 +15,11 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           HOSTNAME: ${{ secrets.HOSTNAME }}
           USER_NAME: ${{ secrets.USER_NAME }}
-          PROJECT_NAME: ${{ secrets.PROJECT_NAME }} 
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} << EOF
-            # Navigate to the project directory dynamically
-            cd /home/${USER_NAME}/${PROJECT_NAME}
+            # Navigate to the project directory
+            # cd /home/${USER_NAME}/Sample-AutoDeploy
 
             # Pull latest changes
             git checkout main
@@ -33,11 +32,11 @@ jobs:
             dotnet build --configuration Release
             
             # Stop existing app if running
-            sudo systemctl stop ${PROJECT_NAME} || true
+            sudo systemctl stop Sample-AutoDeploy || true
             
             # Publish the app
-            dotnet publish -c Release -o /home/${USER_NAME}/${PROJECT_NAME}/published
+            dotnet publish -c Release -o /home/${USER_NAME}/Sample-AutoDeploy/published
 
             # Restart the service
-            sudo systemctl start ${PROJECT_NAME}
+            sudo systemctl start Sample-AutoDeploy
           EOF
